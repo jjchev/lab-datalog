@@ -1,0 +1,19 @@
+Intento de datalogger para las estufas y heladeras del laboratorio
+
+* Usando sensores LM35DZ, probando con uno, ideal colocar dos en diferentes sectores
+	(problema: distancia del sensor al arduino)
+	
+* Medir varias veces y imprimir la media
+
+* Guardar en una memoria MicroSD
+
+* Ponerle display? se puede arruinar adentro de la estufa, quitar librerias si no se va a usar
+
+* Colocarle un real-time clock? puede ser demasiado para la poca precision temporal necesaria
+
+* Tiempo de medicion = Creo que la media de varias mediciones durante 5 segundos, cada 5 minutos de intervalo va bien
+
+* Va a ir en estufa! bateria 9v y circuito con un lm7805? un step down? o Comprarle un modulo?
+
+
+
