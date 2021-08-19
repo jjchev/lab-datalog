@@ -1,44 +1,103 @@
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <SD.h>
+
+//Datalogger con arduino y microSD. Sensores LM35 (analog) y DS18B20 (digital). v0.5.0 /jjchev
 
 // Declaracion de variables globales
-// Sensores LM35
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-#include <splash.h>
+const int pinDatosDQ = 2;
+const int pinLM35 = A0;
+const int pinLED = 5;
+const int pinBOTON = 3;
+const int cspin = 4;
 
-#define ANCHO 128
-#define ALTO 64
-#define OLED_RESET 4
-Adafruit_SSD1306 oled(ANCHO, ALTO, &Wire, OLED_RESET);
+int estadoBoton = 0;
+unsigned long TiempoInicial = 0;
+unsigned long Tiempo = 0;
+int i = 0;
+float voltajeLM = 0.0;
+float Temp = 0;
+
+File dataFile;
 
 
-float tempC; // valor obtenido del sensor (0 a 1023)
-float tempMedia; // valor medio de las 50 lecturas
-int pinLM35 = 0; // Sensor en puerto analogico 0
+// Instancia a las clases OneWire y DallasTemperature
+OneWire oneWireObjeto(pinDatosDQ);
+DallasTemperature sensorDS18B20(&oneWireObjeto);
+
 
 void setup() {
-  // Configuramos el puerto serial a 9600 bps
   Serial.begin(9600); // puerto serial 9600
-  Wire.begin();
+  Serial.print(F("Iniciando SD ..."));
+  if (!SD.begin(cspin))
+  {
+    Serial.println(F("Error al iniciar"));
+    return;
+  }
+  Serial.println(F("Iniciado correctamente"));
+  sensorDS18B20.begin();
+  pinMode(pinLED , OUTPUT);
+  pinMode(pinBOTON , INPUT);
+  analogReference(INTERNAL);
+  attachInterrupt(digitalPinToInterrupt(pinBOTON), reiniciar, CHANGE); //interrupcion de codigo para reiniciar el archivo SD
+
 
 }
 
+
+
 void loop() {
 
-  tempMedia = 0; // inicializar antes de cada loop for
 
-  for (int i = 0; i <= 50; i++) {
-    tempC = analogRead(pinLM35);
-    tempC = (tempC * 5.0 * 100) / 1024;
-    tempMedia = tempMedia + tempC;
-    delay(10); // delay de 100ms entre cada lectura, for de 50 ciclos = temperatura media en 5 segundos
+  Temp = 0;
+  for (int j = 0; j <= 20; j++) {
+    voltajeLM = analogRead(pinLM35);
+    Temp = Temp + (voltajeLM * 1.1 * 100 / 1024.0);
+    delay(50);
+  }
+  Temp = Temp / 20;
+
+
+  Tiempo = millis();
+
+  digitalWrite(pinLED , LOW);
+  sensorDS18B20.requestTemperatures();
+  Serial.print("Temperatura sensor Digital: ");
+  Serial.println(sensorDS18B20.getTempCByIndex(0));
+  Serial.print("Temperatura sensor Analogico: ");
+  Serial.println(Temp); Serial.println("");
+  Serial.println ((Tiempo - TiempoInicial) / 1000);
+
+
+
+  dataFile = SD.open("datalog.txt", FILE_WRITE);
+  if (dataFile) {
+    dataFile.print((Tiempo - TiempoInicial) / 1000 / 60);
+    dataFile.print(",Digital,");
+    dataFile.println(sensorDS18B20.getTempCByIndex(0));
+    dataFile.print((Tiempo - TiempoInicial) / 1000 / 60);
+    dataFile.print(",Analogico,");
+    dataFile.println(Temp);
+    dataFile.close();
+
+  }
+  else {
+    Serial.println("Error al abrir el archivo");
   }
 
-  tempMedia = tempMedia / 50;
-  Serial.print(tempMedia);
-  Serial.print("\n");
-  delay(0); // delay de grabacion de datos a consola o archivo (en milisegundos, restar los 5 segundos del for)
+
+  delay(60000); // Medir cada x (en milisegundos)
 
 
+}
 
+// En interrupciones no funciona delay
+void reiniciar() {
+
+  for (i = 0; i <= 100; i++) {
+    digitalWrite(pinLED , HIGH);
+    digitalWrite(pinLED , LOW);
+  }
+  TiempoInicial = millis();
+  SD.remove("datalog.txt");
 }
